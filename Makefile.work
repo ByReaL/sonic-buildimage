@@ -133,19 +133,19 @@ ifneq ($(SONIC_DPKG_CACHE_SOURCE),)
 endif
 
 ifeq ($(SONIC_CONFIG_USE_NATIVE_DOCKERD_FOR_BUILD), y)
-    DOCKER_RUN += -v /var/run/docker.sock:/var/run/docker.sock
+    DOCKER_RUN += -v /run/docker.sock:/run/docker.sock
 endif
 ifneq (,$(filter $(CONFIGURED_ARCH), armhf arm64))
     # Multiarch docker cannot start dockerd service due to iptables cannot run over different arch kernel
     SONIC_SERVICE_DOCKERD_FOR_MULTIARCH=y
     SONIC_NATIVE_DOCKERD_FOR_MUTLIARCH := dockerd  --experimental=true --storage-driver=vfs \
-	--data-root=/var/lib/march/docker/ --exec-root=/var/run/march/docker/ \
-	-H unix:///var/run/march/docker.sock -p /var/run/march/docker.pid
-    DOCKER_RUN += -v /var/run/march/docker.sock:/var/run/docker.sock
-    DOCKER_RUN += -v /var/run/march/docker.pid:/var/run/docker.pid
+	--data-root=/var/lib/march/docker/ --exec-root=/run/march/docker/ \
+	-H unix:///run/march/docker.sock -p /run/march/docker.pid
+    DOCKER_RUN += -v /run/march/docker.sock:/run/docker.sock
+    DOCKER_RUN += -v /run/march/docker.pid:/run/docker.pid
     DOCKER_RUN += -v /var/run/march/docker:/var/run/docker
     DOCKER_RUN += -v /var/lib/march/docker:/var/lib/docker
-    SONIC_USERFACL_DOCKERD_FOR_MUTLIARCH := setfacl -m user:$(USER):rw /var/run/march/docker.sock
+    SONIC_USERFACL_DOCKERD_FOR_MUTLIARCH := setfacl -m user:$(USER):rw /run/march/docker.sock
 
     #Override Native config to prevent docker service
     SONIC_CONFIG_USE_NATIVE_DOCKERD_FOR_BUILD=y
@@ -162,9 +162,9 @@ ifneq (,$(filter $(CONFIGURED_ARCH), armhf arm64))
     SONIC_NATIVE_DOCKERD_FOR_DOCKERFS := rm -fr $(PWD)/dockerfs; mkdir -p $(PWD)/dockerfs; sudo rm -fr /tmp/d; mkdir -p /tmp/d; ln -s -f $(PWD)/dockerfs $(D_ROOT); \
 					sudo dockerd --storage-driver=overlay2 --iptables=false \
 					--data-root $(D_ROOT)/var/lib/docker/ --exec-root=$(D_ROOT)/var/run/docker/ \
-					-H unix://$(D_ROOT)/var/run/docker.sock -p $(D_ROOT)/var/run/docker.pid &
-    SONIC_USERFACL_DOCKERD_FOR_DOCKERFS := setfacl -m user:$(USER):rw $(D_ROOT)/var/run/docker.sock
-    DOCKER_SERVICE_DOCKERFS_CHECK := (sudo docker -H unix://$(D_ROOT)/var/run/docker.sock info &> /dev/null && sudo kill -9 `sudo cat $(D_ROOT)/var/run/docker.pid`  && false) || (echo "Starting docker build service..."; (sudo $(SONIC_NATIVE_DOCKERD_FOR_DOCKERFS) ) &> /tmp/dockerfs.log ; sleep 1; sudo $(SONIC_USERFACL_DOCKERD_FOR_DOCKERFS);)
+					-H unix://$(D_ROOT)/run/docker.sock -p $(D_ROOT)/run/docker.pid &
+    SONIC_USERFACL_DOCKERD_FOR_DOCKERFS := setfacl -m user:$(USER):rw $(D_ROOT)/run/docker.sock
+    DOCKER_SERVICE_DOCKERFS_CHECK := (sudo docker -H unix://$(D_ROOT)/run/docker.sock info &> /dev/null && sudo kill -9 `sudo cat $(D_ROOT)/run/docker.pid`  && false) || (echo "Starting docker build service..."; (sudo $(SONIC_NATIVE_DOCKERD_FOR_DOCKERFS) ) &> /tmp/dockerfs.log ; sleep 1; sudo $(SONIC_USERFACL_DOCKERD_FOR_DOCKERFS);)
 
 endif
 
@@ -294,8 +294,8 @@ reset :
 	        $(DOCKER_RUN) $(SLAVE_IMAGE):$(SLAVE_TAG) sudo rm -rf fsroot;
 	        if [[ "$(CONFIGURED_ARCH)" == "armhf" || "$(CONFIGURED_ARCH)" ==  "arm64" ]]; then
 	            echo "Stopping march $(CONFIGURED_ARCH) docker"
-	            sudo kill -9 `sudo cat /var/run/march/docker.pid` || true
-	            sudo rm -f /var/run/march/docker.pid || true
+	            sudo kill -9 `sudo cat /run/march/docker.pid` || true
+	            sudo rm -f /run/march/docker.pid || true
 	        fi
 	        git clean -xfdf;
 	        git reset --hard;
